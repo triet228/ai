@@ -38,8 +38,8 @@ echo "   === 2. CONFIGURING PLUG-AND-PLAY DIRECT ETHERNET NETWORK ==="
 echo "=============================================================================="
 echo ""
 
-# Automatically detect active physical primary Ethernet interface (ignores loopback/wifi)
-NET_IFACE=$(ip -o link show | awk -F': ' '$2 !~ "^lo|w=" {print $2; exit}')
+# Automatically detect active physical primary Ethernet interface (ignores loopback/wifi/virtual)
+NET_IFACE=$(ip -o link show | awk -F': ' '$2 !~ "^(lo|wl|docker|veth|br-)" {print $2; exit}')
 
 if [ -z "$NET_IFACE" ]; then
   echo "Error: Could not automatically determine Ethernet interface."
@@ -71,7 +71,9 @@ mkdir -p /etc/systemd/resolved.conf.d/
 echo "[Resolve]
 DNSStubListener=no" > /etc/systemd/resolved.conf.d/no-stub.conf
 
-systemctl restart systemd-resolved || true
+# Fully stop systemd-resolved along with its socket triggers to release port 53 completely
+systemctl stop systemd-resolved.service systemd-resolved-monitor.socket systemd-resolved-varlink.socket 2>/dev/null || true
+systemctl start systemd-resolved || true
 
 # Configure dnsmasq with dynamic interface binding
 echo "interface=${NET_IFACE}
