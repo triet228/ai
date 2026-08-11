@@ -28,7 +28,8 @@ apt-get install -y \
   avahi-daemon \
   dnsmasq \
   docker.io \
-  nvidia-driver-550
+  nvidia-driver-550 \
+  network-manager
 
 # Enable Avahi daemon for mDNS resolution (ai.local)
 systemctl enable --now avahi-daemon
