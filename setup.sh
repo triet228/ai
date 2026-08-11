@@ -27,7 +27,8 @@ apt-get install -y \
   nginx \
   avahi-daemon \
   dnsmasq \
-  docker.io
+  docker.io \
+  nvidia-driver-550
 
 # Enable Avahi daemon for mDNS resolution (ai.local)
 systemctl enable --now avahi-daemon
@@ -117,8 +118,8 @@ until curl -s http://127.0.0.1:11434/api/version >/dev/null; do
     sleep 1
 done
 
-echo "Pulling lightweight chat model (qwen2.5:0.5b)..."
-ollama pull qwen2.5:0.5b
+echo "Pulling lightweight chat model (smollm2:135m)..."
+ollama pull smollm2:135m
 
 echo ""
 echo "=============================================================================="
