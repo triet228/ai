@@ -115,10 +115,7 @@ until curl -s http://127.0.0.1:11434/api/version >/dev/null; do
 done
 
 echo "Pulling lightweight vision model (moondream)..."
-ollama pull moondream
-
-echo "Pulling embedding model (nomic-embed-text)..."
-ollama pull nomic-embed-text
+ollama pull qwen2.5:0.5b
 
 echo ""
 echo "=============================================================================="
