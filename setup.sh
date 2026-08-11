@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 set -eo pipefail
 
 # ------------------------------------------------------------------------------
@@ -71,17 +71,20 @@ mkdir -p /etc/systemd/resolved.conf.d/
 echo "[Resolve]
 DNSStubListener=no" > /etc/systemd/resolved.conf.d/no-stub.conf
 
-# Fully stop systemd-resolved along with its socket triggers to release port 53 completely
+# Stop systemd-resolved AND its socket triggers to release port 53 completely
 systemctl stop systemd-resolved.service systemd-resolved-monitor.socket systemd-resolved-varlink.socket 2>/dev/null || true
 systemctl start systemd-resolved || true
 
-# Configure dnsmasq cleanly without conflicting binding flags
+# Comment out global bind-interfaces from base dnsmasq config if present so bind-dynamic works
+sed -i 's/^bind-interfaces/#bind-interfaces/' /etc/dnsmasq.conf
+
+# Write plug-and-play dnsmasq configuration
 cat <<EOF > /etc/dnsmasq.d/direct-cable.conf
 interface=${NET_IFACE}
-except-interface=lo
-bind-interfaces
+bind-dynamic
 dhcp-range=192.168.1.50,192.168.1.150,255.255.255.0,12h
 dhcp-option=option:dns-server,192.168.1.1
+dhcp-option=option:router,192.168.1.1
 address=/ai.local/192.168.1.1
 EOF
 
@@ -144,8 +147,10 @@ echo "   === 5. CONFIGURING NGINX REVERSE PROXY ==="
 echo "=============================================================================="
 echo ""
 
+# Bind Nginx to both IPv4 and IPv6 to support mDNS resolution (ai.local) over IPv6
 echo "server {
     listen 80 default_server;
+    listen [::]:80 default_server;
     server_name _;
 
     location / {
