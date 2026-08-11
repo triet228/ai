@@ -8,33 +8,28 @@ Quick-start guide to transfer and deploy setup.sh onto a fresh Ubuntu installati
 
 1. Open a terminal (or Command Prompt) on your main computer in the folder containing setup.sh.
 2. Start the Python HTTP server:
-   python3 -m http.server 8000
-   (On Windows: python -m http.server 8000)
-3. Determine your main PC's Wi-Fi IP address:
+   ```
+   python -m http.server 8000
+   ```
+4. Determine your main PC's Wi-Fi IP address:
    - Windows: Run ipconfig in Command Prompt. Note the IPv4 Address under Wireless LAN adapter.
-   - Linux/macOS: Run ip a or ifconfig and note your wireless interface IP (e.g., 192.168.1.105).
+   - Linux/macOS: Run ip a or ifconfig and note your wireless interface IP (e.g., `10.0.0.56`).
 
 ---
 
-## Step 2: Download Script (Target Ubuntu Machine)
+## Step 2: Download & Execute Deployment (Target Ubuntu Machine)
 
 1. Connect the fresh Ubuntu installation to the same Wi-Fi network.
-2. Open a terminal and fetch setup.sh:
-   curl -O http://<YOUR_MAIN_PC_IP>:8000/setup.sh
-   (Example: curl -O http://192.168.1.105:8000/setup.sh)
+2. Open a terminal and run the one-liner command:
+   ```
+   curl -sSL http://10.0.0.56:8000/setup.sh | sudo bash
+   ```
+
+4. Allow the process to complete. The script automates system updates, network configuration, Docker/Ollama/Nginx installation, model pulls (moondream and nomic-embed-text), and Open WebUI initialization.
 
 ---
 
-## Step 3: Run Deployment
-
-1. Make the script executable and run with elevated privileges:
-   sudo chmod +x setup.sh
-   sudo ./setup.sh
-2. Allow the process to complete. The script automates system updates, network configuration, Docker/Ollama/Nginx installation, model pulls (moondream and nomic-embed-text), and Open WebUI initialization.
-
----
-
-## Step 4: Post-Deployment Hand-Off
+## Step 3: Post-Deployment Hand-Off
 
 1. Stop the Python server on your main PC by pressing Ctrl + C.
 2. Disconnect the target machine from Wi-Fi.
