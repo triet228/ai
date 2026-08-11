@@ -22,6 +22,7 @@ hostnamectl set-hostname ai
 apt-get update
 apt-get install -y \
   curl \
+  git \
   python3 \
   nginx \
   avahi-daemon \
@@ -48,8 +49,7 @@ fi
 echo "Configuring network interface: ${NET_IFACE}"
 
 # Apply static IP (192.168.1.1/24) via Netplan
-cat << NETPLAN_EOF | tee /etc/netplan/01-direct-ethernet.yaml
-network:
+echo "network:
   version: 2
   renderer: networkd
   ethernets:
@@ -57,31 +57,28 @@ network:
       addresses:
         - 192.168.1.1/24
       dhcp4: false
-      optional: true
-NETPLAN_EOF
+      optional: true" > /etc/netplan/01-direct-ethernet.yaml
 
 chmod 600 /etc/netplan/01-direct-ethernet.yaml
 netplan apply || true
 
-# Disable DNSStubListener in systemd-resolved so port 53 is freed
-mkdir -p /etc/systemd/resolved.conf.d/
-cat << RESOLVED_EOF | tee /etc/systemd/resolved.conf.d/no-stub.conf
-[Resolve]
-DNSStubListener=no
-RESOLVED_EOF
+# Force IP assignment onto interface immediately
+ip addr add 192.168.1.1/24 dev ${NET_IFACE} 2>/dev/null || true
+ip link set ${NET_IFACE} up || true
 
-# Point /etc/resolv.conf to static systemd-resolved file
-ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+# Disable DNSStubListener in systemd-resolved
+mkdir -p /etc/systemd/resolved.conf.d/
+echo "[Resolve]
+DNSStubListener=no" > /etc/systemd/resolved.conf.d/no-stub.conf
+
 systemctl restart systemd-resolved || true
 
-# Configure dnsmasq with explicit interface binding
-cat << DNSMASQ_EOF | tee /etc/dnsmasq.d/direct-cable.conf
-interface=${NET_IFACE}
-bind-interfaces
+# Configure dnsmasq with dynamic interface binding
+echo "interface=${NET_IFACE}
+bind-dynamic
 dhcp-range=192.168.1.50,192.168.1.150,255.255.255.0,12h
 dhcp-option=option:dns-server,192.168.1.1
-address=/ai.local/192.168.1.1
-DNSMASQ_EOF
+address=/ai.local/192.168.1.1" > /etc/dnsmasq.d/direct-cable.conf
 
 systemctl restart dnsmasq
 
@@ -142,26 +139,24 @@ echo "   === 5. CONFIGURING NGINX REVERSE PROXY ==="
 echo "=============================================================================="
 echo ""
 
-cat << 'NGINX_EOF' | tee /etc/nginx/sites-available/ai-server
-server {
+echo "server {
     listen 80 default_server;
     server_name _;
 
     location / {
         proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         
         # WebSockets support
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_cache_bypass $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \"upgrade\";
+        proxy_cache_bypass \$http_upgrade;
     }
-}
-NGINX_EOF
+}" > /etc/nginx/sites-available/ai-server
 
 ln -sf /etc/nginx/sites-available/ai-server /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
