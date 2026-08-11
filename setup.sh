@@ -60,19 +60,24 @@ network:
       optional: true
 NETPLAN_EOF
 
-# Fix Netplan permissions warning
 chmod 600 /etc/netplan/01-direct-ethernet.yaml
 netplan apply || true
 
-# Stop systemd-resolved port 53 binding conflict for dnsmasq
-systemctl stop systemd-resolved || true
-sed -i 's/#DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf || true
-sed -i 's/DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf || true
+# Disable DNSStubListener in systemd-resolved so port 53 is freed
+mkdir -p /etc/systemd/resolved.conf.d/
+cat << RESOLVED_EOF | tee /etc/systemd/resolved.conf.d/no-stub.conf
+[Resolve]
+DNSStubListener=no
+RESOLVED_EOF
+
+# Point /etc/resolv.conf to static systemd-resolved file
+ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
 systemctl restart systemd-resolved || true
 
-# Configure dnsmasq to serve dynamic IPs to client PCs and resolve ai.local
+# Configure dnsmasq with explicit interface binding
 cat << DNSMASQ_EOF | tee /etc/dnsmasq.d/direct-cable.conf
 interface=${NET_IFACE}
+bind-interfaces
 dhcp-range=192.168.1.50,192.168.1.150,255.255.255.0,12h
 dhcp-option=option:dns-server,192.168.1.1
 address=/ai.local/192.168.1.1
