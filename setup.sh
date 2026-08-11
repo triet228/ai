@@ -22,7 +22,6 @@ hostnamectl set-hostname ai
 apt-get update
 apt-get install -y \
   curl \
-  git \
   python3 \
   nginx \
   avahi-daemon \
@@ -61,9 +60,12 @@ network:
       optional: true
 NETPLAN_EOF
 
+# Fix Netplan permissions warning
+chmod 600 /etc/netplan/01-direct-ethernet.yaml
 netplan apply || true
 
-# Prevent systemd-resolved from listening on port 53 to allow dnsmasq binding
+# Stop systemd-resolved port 53 binding conflict for dnsmasq
+systemctl stop systemd-resolved || true
 sed -i 's/#DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf || true
 sed -i 's/DNSStubListener=yes/DNSStubListener=no/' /etc/systemd/resolved.conf || true
 systemctl restart systemd-resolved || true
@@ -178,4 +180,3 @@ echo ""
 echo "   SSH Access:"
 echo "     • ssh ai@ai.local (Password: 1234)"
 echo "=============================================================================="
-
