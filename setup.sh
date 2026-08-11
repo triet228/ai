@@ -75,12 +75,15 @@ DNSStubListener=no" > /etc/systemd/resolved.conf.d/no-stub.conf
 systemctl stop systemd-resolved.service systemd-resolved-monitor.socket systemd-resolved-varlink.socket 2>/dev/null || true
 systemctl start systemd-resolved || true
 
-# Configure dnsmasq with dynamic interface binding
-echo "interface=${NET_IFACE}
-bind-dynamic
+# Configure dnsmasq cleanly without conflicting binding flags
+cat <<EOF > /etc/dnsmasq.d/direct-cable.conf
+interface=${NET_IFACE}
+except-interface=lo
+bind-interfaces
 dhcp-range=192.168.1.50,192.168.1.150,255.255.255.0,12h
 dhcp-option=option:dns-server,192.168.1.1
-address=/ai.local/192.168.1.1" > /etc/dnsmasq.d/direct-cable.conf
+address=/ai.local/192.168.1.1
+EOF
 
 systemctl restart dnsmasq
 
