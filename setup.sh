@@ -75,6 +75,9 @@ DNSStubListener=no" > /etc/systemd/resolved.conf.d/no-stub.conf
 systemctl stop systemd-resolved.service systemd-resolved-monitor.socket systemd-resolved-varlink.socket 2>/dev/null || true
 systemctl start systemd-resolved || true
 
+# Clean up any pre-existing dnsmasq configs to prevent flag conflicts
+rm -rf /etc/dnsmasq.d/*
+
 # Comment out global bind-interfaces from base dnsmasq config if present so bind-dynamic works
 sed -i 's/^bind-interfaces/#bind-interfaces/' /etc/dnsmasq.conf
 
@@ -114,7 +117,7 @@ until curl -s http://127.0.0.1:11434/api/version >/dev/null; do
     sleep 1
 done
 
-echo "Pulling lightweight vision model (moondream)..."
+echo "Pulling lightweight chat model (qwen2.5:0.5b)..."
 ollama pull qwen2.5:0.5b
 
 echo ""
