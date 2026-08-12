@@ -51,13 +51,14 @@ if ! command -v ollama &> /dev/null; then
     curl -fsSL https://ollama.com/install.sh | sh
 fi
 
-# Configure Ollama environment variables for fast switching & long memory hold
-echo "Applying Ollama speed optimizations (keep-alive & multi-model loading)..."
+# Configure Ollama environment variables for fast switching, memory hold & request queueing
+echo "Applying Ollama speed and queueing optimizations..."
 mkdir -p /etc/systemd/system/ollama.service.d/
 cat <<EOF > /etc/systemd/system/ollama.service.d/override.conf
 [Service]
 Environment="OLLAMA_KEEP_ALIVE=-1"
 Environment="OLLAMA_MAX_LOADED_MODELS=2"
+Environment="OLLAMA_MAX_QUEUE=512"
 EOF
 
 systemctl daemon-reload
@@ -107,7 +108,7 @@ docker pull ghcr.io/open-webui/open-webui:main
 # Remove existing container if script is re-run
 docker rm -f open-webui &>/dev/null || true
 
-# Launch container
+# Launch container with backend task queuing enabled
 docker run -d \
   --network=host \
   -v open-webui:/app/backend/data \
@@ -115,6 +116,7 @@ docker run -d \
   -e WEBUI_AUTH=false \
   -e ENABLE_OLLAMA_TOOLS=false \
   -e ENABLE_FUNCTION_CALLING=false \
+  -e ENABLE_QUEUE=true \
   --name open-webui \
   --restart always \
   ghcr.io/open-webui/open-webui:main
