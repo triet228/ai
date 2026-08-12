@@ -68,9 +68,6 @@ until curl -s http://127.0.0.1:11434/api/version >/dev/null; do
     sleep 1
 done
 
-echo "Pulling lightweight chat model (smollm2:135m)..."
-ollama pull smollm2:135m
-
 # Ensure gemma4:26b is pulled for preloading if not already present
 if ! ollama list | grep -q "gemma4:26b"; then
     echo "Pulling gemma4:26b for system startup preloading..."
