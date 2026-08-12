@@ -42,7 +42,7 @@ fi
 
 echo ""
 echo "=============================================================================="
-echo "   === 2. INSTALLING OLLAMA & PULLING LIGHTWEIGHT MODELS ==="
+echo "   === 2. CONFIGURING OLLAMA, SPEED OPTIMIZATIONS & PRELOADER ==="
 echo "=============================================================================="
 echo ""
 
@@ -51,6 +51,16 @@ if ! command -v ollama &> /dev/null; then
     curl -fsSL https://ollama.com/install.sh | sh
 fi
 
+# Configure Ollama environment variables for fast switching & long memory hold
+echo "Applying Ollama speed optimizations (keep-alive & multi-model loading)..."
+mkdir -p /etc/systemd/system/ollama.service.d/
+cat <<EOF > /etc/systemd/system/ollama.service.d/override.conf
+[Service]
+Environment="OLLAMA_KEEP_ALIVE=-1"
+Environment="OLLAMA_MAX_LOADED_MODELS=2"
+EOF
+
+systemctl daemon-reload
 systemctl enable --now ollama
 
 echo "Waiting for Ollama API daemon..."
@@ -60,6 +70,33 @@ done
 
 echo "Pulling lightweight chat model (smollm2:135m)..."
 ollama pull smollm2:135m
+
+# Ensure gemma4:26b is pulled for preloading if not already present
+if ! ollama list | grep -q "gemma4:26b"; then
+    echo "Pulling gemma4:26b for system startup preloading..."
+    ollama pull gemma4:26b || true
+fi
+
+# Create boot service to auto-load gemma4:26b into RAM/VRAM on startup
+echo "Configuring automatic boot preloader for gemma4:26b..."
+cat <<EOF > /etc/systemd/system/preload-ollama.service
+[Unit]
+Description=Preload Gemma 26B into VRAM on Boot
+After=ollama.service
+Requires=ollama.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl -s http://127.0.0.1:11434/api/generate -d '{"model": "gemma4:26b", "keep_alive": -1}'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable preload-ollama.service
+systemctl start preload-ollama.service || true
 
 echo ""
 echo "=============================================================================="
