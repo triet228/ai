@@ -133,6 +133,7 @@ echo "server {
     listen [::]:80 default_server;
     server_name _;
 
+    # Open WebUI Frontend / API
     location / {
         proxy_pass http://127.0.0.1:8080;
         proxy_set_header Host \$http_host;
@@ -145,6 +146,14 @@ echo "server {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection \"upgrade\";
         proxy_cache_bypass \$http_upgrade;
+    }
+
+    # Direct Ollama API Proxy (Port 80 routing without API key requirement)
+    location /ollama/ {
+        proxy_pass http://127.0.0.1:11434/;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
     }
 }" > /etc/nginx/sites-available/ai-server
 
