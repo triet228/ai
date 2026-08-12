@@ -51,11 +51,12 @@ if ! command -v ollama &> /dev/null; then
     curl -fsSL https://ollama.com/install.sh | sh
 fi
 
-# Configure Ollama environment variables for fast switching, memory hold & request queueing
-echo "Applying Ollama speed and queueing optimizations..."
+# Configure Ollama environment variables for network access, fast switching & queueing
+echo "Applying Ollama network binding, speed, and queueing optimizations..."
 mkdir -p /etc/systemd/system/ollama.service.d/
 cat <<EOF > /etc/systemd/system/ollama.service.d/override.conf
 [Service]
+Environment="OLLAMA_HOST=0.0.0.0:11434"
 Environment="OLLAMA_KEEP_ALIVE=-1"
 Environment="OLLAMA_MAX_LOADED_MODELS=2"
 Environment="OLLAMA_MAX_QUEUE=512"
@@ -114,7 +115,6 @@ docker run -d \
   -v open-webui:/app/backend/data \
   -e OLLAMA_BASE_URL=http://127.0.0.1:11434 \
   -e WEBUI_AUTH=false \
-  -e ENABLE_API_KEY=false \
   -e ENABLE_OLLAMA_TOOLS=false \
   -e ENABLE_FUNCTION_CALLING=false \
   -e ENABLE_QUEUE=true \
@@ -218,6 +218,7 @@ echo ""
 echo "   Access Points via Direct Cable Connection:"
 echo "     • http://ai.local"
 echo "     • http://192.168.1.1"
+echo "     • Ollama API: http://ai.local:11434"
 echo ""
 echo "   SSH Access:"
 echo "     • ssh ai@ai.local (Password: 1234)"
