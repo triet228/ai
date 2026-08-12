@@ -34,13 +34,94 @@ apt-get install -y \
 # Enable Avahi daemon for mDNS resolution (ai.local)
 systemctl enable --now avahi-daemon
 
+# Enable Docker service and ensure non-root user group access
+systemctl enable --now docker
+if id "ai" &>/dev/null; then
+  usermod -aG docker ai || true
+fi
+
 echo ""
 echo "=============================================================================="
-echo "   === 2. CONFIGURING PLUG-AND-PLAY DIRECT ETHERNET NETWORK ==="
+echo "   === 2. INSTALLING OLLAMA & PULLING LIGHTWEIGHT MODELS ==="
 echo "=============================================================================="
 echo ""
 
-# Automatically detect active physical primary Ethernet interface (ignores loopback/wifi/virtual)
+if ! command -v ollama &> /dev/null; then
+    echo "Installing Ollama binary..."
+    curl -fsSL https://ollama.com/install.sh | sh
+fi
+
+systemctl enable --now ollama
+
+echo "Waiting for Ollama API daemon..."
+until curl -s http://127.0.0.1:11434/api/version >/dev/null; do
+    sleep 1
+done
+
+echo "Pulling lightweight chat model (smollm2:135m)..."
+ollama pull smollm2:135m
+
+echo ""
+echo "=============================================================================="
+echo "   === 3. STARTING OPEN WEBUI CONTAINER ==="
+echo "=============================================================================="
+echo ""
+
+# Pre-pull image while internet is active
+docker pull ghcr.io/open-webui/open-webui:main
+
+# Remove existing container if script is re-run
+docker rm -f open-webui &>/dev/null || true
+
+# Launch container
+docker run -d \
+  --network=host \
+  -v open-webui:/app/backend/data \
+  -e OLLAMA_BASE_URL=http://127.0.0.1:11434 \
+  -e WEBUI_AUTH=false \
+  -e ENABLE_OLLAMA_TOOLS=false \
+  -e ENABLE_FUNCTION_CALLING=false \
+  --name open-webui \
+  --restart always \
+  ghcr.io/open-webui/open-webui:main
+
+echo ""
+echo "=============================================================================="
+echo "   === 4. CONFIGURING NGINX REVERSE PROXY ==="
+echo "=============================================================================="
+echo ""
+
+echo "server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        # WebSockets support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \"upgrade\";
+        proxy_cache_bypass \$http_upgrade;
+    }
+}" > /etc/nginx/sites-available/ai-server
+
+ln -sf /etc/nginx/sites-available/ai-server /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl restart nginx
+
+echo ""
+echo "=============================================================================="
+echo "   === 5. CONFIGURING PLUG-AND-PLAY DIRECT ETHERNET NETWORK ==="
+echo "=============================================================================="
+echo ""
+
+# Automatically detect active physical primary Ethernet interface
 NET_IFACE=$(ip -o link show | awk -F': ' '$2 !~ "^(lo|wl|docker|veth|br-)" {print $2; exit}')
 
 if [ -z "$NET_IFACE" ]; then
@@ -68,19 +149,10 @@ netplan apply || true
 ip addr add 192.168.1.1/24 dev ${NET_IFACE} 2>/dev/null || true
 ip link set ${NET_IFACE} up || true
 
-# Disable DNSStubListener in systemd-resolved
-mkdir -p /etc/systemd/resolved.conf.d/
-echo "[Resolve]
-DNSStubListener=no" > /etc/systemd/resolved.conf.d/no-stub.conf
-
-# Stop systemd-resolved AND its socket triggers to release port 53 completely
-systemctl stop systemd-resolved.service systemd-resolved-monitor.socket systemd-resolved-varlink.socket 2>/dev/null || true
-systemctl start systemd-resolved || true
-
-# Clean up any pre-existing dnsmasq configs to prevent flag conflicts
+# Clean up any pre-existing dnsmasq configs
 rm -rf /etc/dnsmasq.d/*
 
-# Comment out global bind-interfaces from base dnsmasq config if present so bind-dynamic works
+# Comment out global bind-interfaces from base dnsmasq config if present
 sed -i 's/^bind-interfaces/#bind-interfaces/' /etc/dnsmasq.conf
 
 # Write plug-and-play dnsmasq configuration
@@ -94,85 +166,6 @@ address=/ai.local/192.168.1.1
 EOF
 
 systemctl restart dnsmasq
-
-# Enable Docker service and ensure non-root user group access
-systemctl enable --now docker
-if id "ai" &>/dev/null; then
-  usermod -aG docker ai || true
-fi
-
-echo ""
-echo "=============================================================================="
-echo "   === 3. INSTALLING OLLAMA & PULLING LIGHTWEIGHT MODELS ==="
-echo "=============================================================================="
-echo ""
-
-if ! command -v ollama &> /dev/null; then
-    echo "Installing Ollama binary..."
-    curl -fsSL https://ollama.com/install.sh | sh
-fi
-
-systemctl enable --now ollama
-
-echo "Waiting for Ollama API daemon..."
-until curl -s http://127.0.0.1:11434/api/version >/dev/null; do
-    sleep 1
-done
-
-echo "Pulling lightweight chat model (smollm2:135m)..."
-ollama pull smollm2:135m
-
-echo ""
-echo "=============================================================================="
-echo "   === 4. STARTING OPEN WEBUI CONTAINER ==="
-echo "=============================================================================="
-echo ""
-
-# Remove existing container if script is re-run
-docker rm -f open-webui &>/dev/null || true
-
-# Launch container with tool/function calling disabled to ensure zero frontend schema errors
-docker run -d \
-  --network=host \
-  -v open-webui:/app/backend/data \
-  -e OLLAMA_BASE_URL=http://127.0.0.1:11434 \
-  -e WEBUI_AUTH=false \
-  -e ENABLE_OLLAMA_TOOLS=false \
-  -e ENABLE_FUNCTION_CALLING=false \
-  --name open-webui \
-  --restart always \
-  ghcr.io/open-webui/open-webui:main
-
-echo ""
-echo "=============================================================================="
-echo "   === 5. CONFIGURING NGINX REVERSE PROXY ==="
-echo "=============================================================================="
-echo ""
-
-# Bind Nginx to both IPv4 and IPv6 to support mDNS resolution (ai.local) over IPv6
-echo "server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    server_name _;
-
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host \$http_host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        
-        # WebSockets support
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection \"upgrade\";
-        proxy_cache_bypass \$http_upgrade;
-    }
-}" > /etc/nginx/sites-available/ai-server
-
-ln -sf /etc/nginx/sites-available/ai-server /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
-nginx -t && systemctl restart nginx
 
 echo ""
 echo "Waiting for Open WebUI backend to initialize..."
