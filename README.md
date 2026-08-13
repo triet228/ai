@@ -42,9 +42,7 @@ Quick-start guide to transfer and deploy `setup.sh` onto a fresh Ubuntu installa
 
 1. Connect a direct Ethernet cable from the AI box to any laptop.
 2. Restart laptop.
-3. On the laptop, open a web browser and navigate to:
-   * **Open WebUI:** `http://ai.local` (or `http://192.168.1.1`)
-
+3. On the laptop, open a web browser and navigate to `ai.local`
 ## Developer Note
 
 ### Ollama API
