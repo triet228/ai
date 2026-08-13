@@ -18,8 +18,10 @@ Quick-start guide to transfer and deploy `setup.sh` onto a fresh Ubuntu installa
 
 1. Open a terminal (or Command Prompt) on your main computer in the folder containing `setup.sh`.
 2. Start the Python HTTP server:
+   ```
    python -m http.server 8000
-3. Determine your main PC's Wi-Fi IP address:
+   ```
+4. Determine your main PC's Wi-Fi IP address:
    * **Windows:** Run `ipconfig` in Command Prompt. Note the IPv4 Address under Wireless LAN adapter.
    * **Linux / macOS:** Run `ip a` or `ifconfig` and note your wireless interface IP (e.g., `10.0.0.56`).
 
@@ -29,8 +31,10 @@ Quick-start guide to transfer and deploy `setup.sh` onto a fresh Ubuntu installa
 
 1. Connect the target Ubuntu machine to the same Wi-Fi network.
 2. Open a terminal on the target machine and run the one-liner command (replace `10.0.0.56` with your main PC's IP):
+   ```
    curl -sSL http://10.0.0.56:8000/setup.sh | sudo bash
-3. Allow the process to complete. The script automatically handles system updates, GPU power management, network configuration, Docker/Ollama/Nginx setup, pulling `gemma4:26b`, and initializing Open WebUI.
+   ```
+4. Allow the process to complete. The script automatically handles system updates, GPU power management, network configuration, Docker/Ollama/Nginx setup, pulling `gemma4:26b`, and initializing Open WebUI.
 
 ---
 
