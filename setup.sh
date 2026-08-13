@@ -12,7 +12,7 @@ fi
 
 echo ""
 echo "=============================================================================="
-echo "   === 1. UPDATING SYSTEM & INSTALLING CORE DEPENDENCIES ==="
+echo "   === 1. UPDATING SYSTEM, DRIVERS & GPU POWER MANAGEMENT ==="
 echo "=============================================================================="
 echo ""
 
@@ -39,6 +39,26 @@ systemctl enable --now docker
 if id "ai" &>/dev/null; then
   usermod -aG docker ai || true
 fi
+
+# Configure persistent 180W GPU power cap and persistence mode
+echo "Creating systemd service for GPU Persistence Mode & 180W Power Limit..."
+cat <<EOF > /etc/systemd/system/nvidia-power-limit.service
+[Unit]
+Description=NVIDIA GPU Persistence Mode and Power Limit (180W)
+After=syslog.target network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nvidia-smi -pm 1
+ExecStart=/usr/bin/nvidia-smi -pl 180
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now nvidia-power-limit.service || true
 
 echo ""
 echo "=============================================================================="
