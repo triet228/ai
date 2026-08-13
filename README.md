@@ -14,14 +14,14 @@ Quick-start guide to transfer and deploy `setup.sh` onto a fresh Ubuntu installa
 
 ---
 
-## Step 1: Start Temporary Host Server (Main PC)
+## Step 1: Start Temporary Host
 
-1. Open a terminal (or Command Prompt) on your main computer in the folder containing `setup.sh`.
+1. Open a terminal (or Command Prompt) on your main Host computer in the folder containing `setup.sh`.
 2. Start the Python HTTP server:
    ```
    python -m http.server 8000
    ```
-4. Determine your main PC's Wi-Fi IP address:
+4. Determine your main Host's Wi-Fi IP address:
    * **Windows:** Run `ipconfig` in Command Prompt. Note the IPv4 Address under Wireless LAN adapter.
    * **Linux / macOS:** Run `ip a` or `ifconfig` and note your wireless interface IP (e.g., `10.0.0.56`).
 
@@ -29,8 +29,8 @@ Quick-start guide to transfer and deploy `setup.sh` onto a fresh Ubuntu installa
 
 ## Step 2: Download & Execute Deployment (Target Ubuntu Machine)
 
-1. Connect the target Ubuntu machine to the same Wi-Fi network.
-2. Open a terminal on the target machine and run the one-liner command (replace `10.0.0.56` with your main PC's IP):
+1. Connect the AI box to the same Wi-Fi network via Ethernet.
+2. Open a terminal on the AI box and run command (replace `10.0.0.56` with your Host's IP):
    ```
    curl -sSL http://10.0.0.56:8000/setup.sh | sudo bash
    ```
@@ -40,16 +40,22 @@ Quick-start guide to transfer and deploy `setup.sh` onto a fresh Ubuntu installa
 
 ## Step 3: Post-Deployment Hand-Off
 
-1. Stop the Python server on your main PC by pressing `Ctrl + C`.
-2. Disconnect the target machine from Wi-Fi.
-3. Connect a direct Ethernet cable from the server to any client machine.
-4. On the client machine, open a web browser and navigate to:
-   * **WebUI:** http://ai.local or http://192.168.1.1
-   * **Ollama API (Proxied):** http://ai.local/ollama/
-   * **Ollama API (Direct):** http://ai.local:11434
+1. Connect a direct Ethernet cable from the AI box to any laptop.
+2. Restart laptop.
+3. On the laptop, open a web browser and navigate to:
+   * **Open WebUI:** `http://ai.local` (or `http://192.168.1.1`)
+
+## Developer Note
+
+### Ollama API
+Ollama API can be accessed at `http://ai.local/ollama/` (or `http://192.168.1.1:11434`). You can run this command to test if the API is working:
+```
+curl.exe http://ai.local/ollama/api/tags
+```
 
 ### Default SSH Access
+To access the internal of the AI box, you can go to your terminal, run:
 ```
 ssh ai@ai.local
 ```
-Default Password is 1234.
+Type in `yes` for fingerprint request and enter default password `1234`. Warning is that you might want to change the password for security purpose.
