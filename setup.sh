@@ -115,10 +115,12 @@ docker run -d \
   -v open-webui:/app/backend/data \
   -e OLLAMA_BASE_URL=http://127.0.0.1:11434 \
   -e OLLAMA_KEEP_ALIVE=-1 \
+  -e OLLAMA_NUM_PARALLEL=1 \
+  -e ENABLE_QUEUE=true \
+  -e MAX_QUEUE_SIZE=512
   -e WEBUI_AUTH=false \
   -e ENABLE_OLLAMA_TOOLS=false \
   -e ENABLE_FUNCTION_CALLING=false \
-  -e ENABLE_QUEUE=true \
   --name open-webui \
   --restart always \
   ghcr.io/open-webui/open-webui:main
