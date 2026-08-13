@@ -76,13 +76,13 @@ if ! ollama list | grep -q "gemma4:26b"; then
     ollama pull gemma4:26b || true
 fi
 
-# Create boot service to auto-load gemma4:26b into RAM/VRAM on startup
-echo "Configuring automatic boot preloader for gemma4:26b..."
+# Create boot/restart service to auto-load gemma4:26b into RAM/VRAM
+echo "Configuring automatic boot and service-restart preloader for gemma4:26b..."
 cat <<EOF > /etc/systemd/system/preload-ollama.service
 [Unit]
-Description=Preload Gemma 26B into VRAM on Boot
+Description=Preload Gemma 26B into VRAM on Boot or Ollama Restart
 After=ollama.service
-Requires=ollama.service
+BindsTo=ollama.service
 
 [Service]
 Type=oneshot
@@ -90,7 +90,7 @@ ExecStart=/usr/bin/curl -s http://127.0.0.1:11434/api/generate -d '{"model": "ge
 RemainAfterExit=yes
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=multi-user.target ollama.service
 EOF
 
 systemctl daemon-reload
@@ -109,11 +109,12 @@ docker pull ghcr.io/open-webui/open-webui:main
 # Remove existing container if script is re-run
 docker rm -f open-webui &>/dev/null || true
 
-# Launch container with backend task queuing enabled
+# Launch container with backend task queuing and infinite model keep-alive
 docker run -d \
   --network=host \
   -v open-webui:/app/backend/data \
   -e OLLAMA_BASE_URL=http://127.0.0.1:11434 \
+  -e OLLAMA_KEEP_ALIVE=-1 \
   -e WEBUI_AUTH=false \
   -e ENABLE_OLLAMA_TOOLS=false \
   -e ENABLE_FUNCTION_CALLING=false \
@@ -227,7 +228,8 @@ echo ""
 echo "   Access Points via Direct Cable Connection:"
 echo "     • http://ai.local"
 echo "     • http://192.168.1.1"
-echo "     • Ollama API: http://ai.local:11434"
+echo "     • Ollama Proxy: http://ai.local/ollama/"
+echo "     • Ollama Direct: http://ai.local:11434"
 echo ""
 echo "   SSH Access:"
 echo "     • ssh ai@ai.local (Password: 1234)"
